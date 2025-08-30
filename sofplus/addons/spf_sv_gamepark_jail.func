@@ -73,7 +73,9 @@ function spf_sv_gamepark_jail_on_cl_join(*)
             {
                 //a jailee has returned.
                 //they don't get their lives back.
-                sp_sc_cvar_copy _spf_sv_rcon_jailed_lives_$~1 _spf_sv_jail_maxlives
+                set ~max_add_1 1
+                add ~max_add_1 #_spf_sv_jail_maxlives
+                sp_sc_cvar_copy _spf_sv_rcon_jailed_lives_$~1 ~max_add_1
                 sp_sv_client_spec #~1
                 sp_sc_cvar_sset ~jailed _spf_sv_rcon_jailed_ #~1
                 set #~jailed 1
@@ -138,7 +140,8 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
     //do once
     sp_sc_flow_if text cvar _spf_sv_rcon_jailed_voting == val ""
     {
-        sset ~msg Admin #~admin_name has voted to jail #~jailee_name ... supply #~votes_needed votes if guilty.
+        sset ~msg %04Admin #~admin_name %04has voted to jail #~jailee_name %04... supply #~votes_needed votes if guilty.
+        sp_sc_cvar_unescape ~msg ~msg
         sp_sv_print_broadcast #~msg
 
         //Voting in progress
@@ -216,6 +219,7 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
             sp_sv_print_client #~par_slot "OK: Started vote to jail the accused."
 
             sp_sc_cvar_copy ~jailee_name _sp_sv_info_client_name
+            sp_sc_cvar_escape ~jailee_name ~jailee_name
 
             echo slot #~par_slot voted to jail #~par_jail_slot
             
@@ -223,7 +227,8 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
             set _spf_sv_jail_votes 1 
             sp_sv_info_client #~par_slot
             sp_sc_cvar_copy ~admin_name _sp_sv_info_client_name 
-        
+            sp_sc_cvar_escape ~admin_name ~admin_name
+
             sp_sc_info_time
             sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_name #~jailee_name #_sp_sv_info_client_ip #_sp_sc_info_time_sec
         }
