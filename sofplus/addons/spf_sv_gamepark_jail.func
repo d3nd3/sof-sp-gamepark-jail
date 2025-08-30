@@ -28,6 +28,8 @@ function spf_sv_gamepark_jail_on_map_begin()
     {
         zero _spf_sv_rcon_jailed_$~i
         set _spf_sv_rcon_jailed_lives_$~i 0
+        // per-slot vote flag: cleared at map begin
+        zero _spf_sv_rcon_jailed_voted_$~i
 
         add ~i 1
     }
@@ -46,6 +48,8 @@ function spf_sv_gamepark_jail_on_cl_disc(*)
 {
     zero _spf_sv_rcon_jailed_$~1
     set _spf_sv_rcon_jailed_lives_$~1 0
+    // clear per-slot vote flag on disconnect
+    zero _spf_sv_rcon_jailed_voted_$~1
     
 }
 
@@ -55,6 +59,8 @@ function spf_sv_gamepark_jail_on_cl_join(*)
     zero _spf_sv_rcon_jailed_$~1
     //hop in lives
     set _spf_sv_rcon_jailed_lives_$~1 0
+    // clear per-slot vote flag on join
+    zero _spf_sv_rcon_jailed_voted_$~1
 
     sp_sc_flow_if number cvar _spf_sv_jailed_count > val 0
     {
@@ -130,7 +136,7 @@ function spf_sv_gamepark_jail_loop()
     sp_sc_timer #_spf_sv_jail_loopms "sp_sc_func_exec spf_sv_gamepark_jail_loop" 
 }
 
-function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name , ~jailee_ip, ~start_time)
+function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name , ~jailee_ip, ~start_time, ~map_count)
 {
     
     sp_sc_cvar_copy ~votes_needed _spf_sv_jail_maxvotes 
@@ -188,16 +194,31 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
         sp_sv_print_broadcast #~msg
     }
     
+    
+    sp_sc_flow_if number cvar _sp_sv_info_map_count > cvar ~map_count
+    {
+        //new map, end the loop
+        set ~vote_ended 1
+    }
 
     sp_sc_flow_if number cvar ~vote_ended == val 0
     {
-        sset ~cmd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~jailee_slot #~admin_name #~jailee_name #~jailee_ip #~start_time
+        sset ~cmd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~jailee_slot #~admin_name #~jailee_name #~jailee_ip #~start_time #~map_count
         sp_sc_timer 5000 #~cmd
     }
     else
     {
         //Voting has ended.
         //Allow other votes to start. Reset variables.
+        //clear per-slot voted flags and the vote starter
+        set ~i 0
+        sp_sc_flow_while number cvar ~i < cvar maxclients
+        {
+            zero _spf_sv_rcon_jailed_voted_$~i
+            add ~i 1
+        }
+        zero _spf_sv_rcon_jailed_vote_starter
+
         zero _spf_sv_rcon_jailed_voting
         zero _spf_sv_jail_votes
 
@@ -216,7 +237,9 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
 
         sp_sc_flow_if text cvar _sp_sv_info_client_ip != val ""
         {
-            sp_sv_print_client #~par_slot "OK: Started vote to jail the accused."
+            sset ~msg %03OK: Started vote to jail the accused.
+            sp_sc_cvar_unescape ~msg ~msg
+            sp_sv_print_client #~par_slot #~msg
 
             sp_sc_cvar_copy ~jailee_name _sp_sv_info_client_name
             sp_sc_cvar_escape ~jailee_name ~jailee_name
@@ -229,18 +252,26 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
             sp_sc_cvar_copy ~admin_name _sp_sv_info_client_name 
             sp_sc_cvar_escape ~admin_name ~admin_name
 
+            // record which slot started the vote and mark starter as having voted
+            set _spf_sv_rcon_jailed_vote_starter #~par_slot
+            set _spf_sv_rcon_jailed_voted_#~par_slot 1
+
             sp_sc_info_time
-            sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_name #~jailee_name #_sp_sv_info_client_ip #_sp_sc_info_time_sec
+            sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_name #~jailee_name #_sp_sv_info_client_ip #_sp_sc_info_time_sec #_sp_sv_info_map_count
         }
         else
         {
-            sp_sv_print_client #~par_slot "ERROR: Provided slot id is not in use."
+            sset ~msg %02ERROR: Provided slot id is not in use.
+            sp_sc_cvar_unescape ~msg ~msg
+            sp_sv_print_client #~par_slot #~msg
         }
         
     }
     else
     {
-        sp_sv_print_client #~par_slot "ERROR: Jail voting is already in progress, try again later."
+        sset ~msg %02ERROR: Jail voting is already in progress, try again later.
+        sp_sc_cvar_unescape ~msg ~msg
+        sp_sv_print_client #~par_slot #~msg
     }
     
 }
@@ -250,8 +281,34 @@ function .jail(~par_slot, *)
     //vote in progress
     sp_sc_flow_if text cvar _spf_sv_rcon_jailed_voting != val ""
     {
-        add _spf_sv_jail_votes 1
-        sset ~msg "Received a vote to jail the accused. type .jail if you agree" 
-        sp_sv_print_broadcast  #~msg
+        // Prevent the slot that started the vote from voting and prevent duplicate votes per slot
+        sp_sc_cvar_copy ~starter _spf_sv_rcon_jailed_vote_starter
+        sp_sc_flow_if number cvar ~par_slot == cvar ~starter
+        {
+            // starter cannot vote
+            sset ~msg %02ERROR: Vote starter cannot vote.
+            sp_sc_cvar_unescape ~msg ~msg
+            sp_sv_print_client #~par_slot #~msg
+        }
+        else
+        {
+            // Check if this slot already voted
+            sp_sc_cvar_copy ~voted_flag _spf_sv_rcon_jailed_voted_$~par_slot
+            sp_sc_flow_if text cvar ~voted_flag == val ""
+            {
+                // mark vote from this slot
+                set _spf_sv_rcon_jailed_voted_$~par_slot 1
+                add _spf_sv_jail_votes 1
+                sset ~msg %04Received a vote to jail the accused. type %03.jail %04if you agree
+                sp_sc_cvar_unescape ~msg ~msg
+                sp_sv_print_broadcast  #~msg
+            }
+            else
+            {
+                sset ~msg %02ERROR: You already voted.
+                sp_sc_cvar_unescape ~msg ~msg
+                sp_sv_print_client #~par_slot #~msg
+            }
+        }
     }
 }
