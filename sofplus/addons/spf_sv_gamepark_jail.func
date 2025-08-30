@@ -180,7 +180,7 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
     sp_sc_flow_if number cvar _sp_sc_info_time_sec > val 30
     {
         set ~vote_ended 1
-        sset ~msg %04Vote to kick #~jailee_name %02failed %04: assume %03innocent.
+        sset ~msg %04Vote to jail #~jailee_name %02failed %04: assume %03innocent.
         sp_sc_cvar_unescape ~msg ~msg
         sp_sv_print_broadcast #~msg
     }
