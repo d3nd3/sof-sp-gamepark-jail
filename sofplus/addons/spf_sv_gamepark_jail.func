@@ -11,7 +11,7 @@ function spf_sv_gamepark_jail_init()
     sp_sc_func_exec spf_sv_gamepark_jail_on_map_begin
 
     //ms for all jailees to be checked
-    set _spf_sv_jail_loopms 1000
+    set _spf_sv_jail_loopms 2500
     //lives of hopping back in abuse
     set _spf_sv_jail_maxlives 3
     //votes required from other players in server to jail someone.
