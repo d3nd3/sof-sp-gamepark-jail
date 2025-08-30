@@ -37,11 +37,11 @@ function spf_sv_gamepark_jail_on_map_begin()
     set _spf_sv_jailed_count 0
     //clear the jailee ip list.
     zero _spf_sv_jail_iplist
+    
     //is voting in progress
     zero _spf_sv_rcon_jailed_voting
     zero _spf_sv_jail_votes
-
-    
+    _spf_sv_rcon_jailed_vote_starter
 }
 
 function spf_sv_gamepark_jail_on_cl_disc(*)
@@ -175,29 +175,31 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
         }
         else
         {
-            sset ~msg %04Jail #~jailee_name %04vote active. #~votes_needed votes until jail. Are they guilty? type %03.jail %04if they are.
-            sp_sc_cvar_unescape ~msg ~msg
-            sp_sv_print_broadcast #~msg
+
+            sp_sc_info_time
+            sp_sc_cvar_math_sub _sp_sc_info_time_sec #~start_time
+            sp_sc_flow_if number cvar _sp_sc_info_time_sec > val 30
+            {
+                set ~vote_ended 1
+                sset ~msg %04Vote to jail #~jailee_name %02failed %04: assume %03innocent.
+                sp_sc_cvar_unescape ~msg ~msg
+                sp_sv_print_broadcast #~msg
+            }
+            else
+            {
+                sset ~msg %04Jail #~jailee_name %04vote active. #~votes_needed votes until jail. Are they guilty? type %03.jail %04if they are.
+                sp_sc_cvar_unescape ~msg ~msg
+                sp_sv_print_broadcast #~msg
+            }
+
+            
         }
         
     }
     
-    
-
-    sp_sc_info_time
-    sp_sc_cvar_math_sub _sp_sc_info_time_sec #~start_time
-    sp_sc_flow_if number cvar _sp_sc_info_time_sec > val 30
-    {
-        set ~vote_ended 1
-        sset ~msg %04Vote to jail #~jailee_name %02failed %04: assume %03innocent.
-        sp_sc_cvar_unescape ~msg ~msg
-        sp_sv_print_broadcast #~msg
-    }
-    
-    
     sp_sc_flow_if number cvar _sp_sv_info_map_count > cvar ~map_count
     {
-        //new map, end the loop
+        //vote across map loads, end the loop
         set ~vote_ended 1
     }
 
