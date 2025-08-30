@@ -18,7 +18,7 @@ function spf_sv_gamepark_jail_init()
     set _spf_sv_jail_maxvotes 3
     
     
-    sp_sc_func_exec spf_sv_gamepark_jail_jail_loop
+    sp_sc_func_exec spf_sv_gamepark_jail_loop
 }
 
 function spf_sv_gamepark_jail_on_map_begin()
