@@ -136,7 +136,7 @@ function spf_sv_gamepark_jail_loop()
     sp_sc_timer #_spf_sv_jail_loopms "sp_sc_func_exec spf_sv_gamepark_jail_loop" 
 }
 
-function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name , ~jailee_ip, ~start_time, ~map_count)
+function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_display , ~jailee_display , ~jailee_ip, ~start_time, ~map_count)
 {
     
     sp_sc_cvar_copy ~votes_needed _spf_sv_jail_maxvotes 
@@ -146,7 +146,7 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
     //do once
     sp_sc_flow_if text cvar _spf_sv_rcon_jailed_voting == val ""
     {
-        sset ~msg %04Admin #~admin_name %04has voted to jail #~jailee_name %04... supply #~votes_needed votes if guilty.
+        sset ~msg %04Admin #~admin_display %04has voted to jail #~jailee_display %04... supply #~votes_needed votes if guilty.
         sp_sc_cvar_unescape ~msg ~msg
         sp_sv_print_broadcast #~msg
 
@@ -169,7 +169,7 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
             
             sp_sc_func_exec spf_sc_list_add _spf_sv_jail_iplist #~jailee_ip ","
 
-            sset ~msg %04Vote to jail #~jailee_name %04for the duration of this map %03succeeded %04: assume %02guilty.
+            sset ~msg %04Vote to jail #~jailee_display %04for the duration of this map %03succeeded %04: assume %02guilty.
             sp_sc_cvar_unescape ~msg ~msg
             sp_sv_print_broadcast #~msg
 
@@ -185,13 +185,13 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
             sp_sc_flow_if number cvar _sp_sc_info_time_sec > val 30
             {
                 set ~vote_ended 1
-                sset ~msg %04Vote to jail #~jailee_name %02failed %04: assume %03innocent.
+                sset ~msg %04Vote to jail #~jailee_display %02failed %04: assume %03innocent.
                 sp_sc_cvar_unescape ~msg ~msg
                 sp_sv_print_broadcast #~msg
             }
             else
             {
-                sset ~msg %04Jail #~jailee_name %04vote active. #~votes_needed votes until jail. Are they guilty? type %03.jail %04if they are.
+                sset ~msg %04Jail #~jailee_display %04vote active. #~votes_needed votes until jail. Are they guilty? type %03.jail %04if they are.
                 sp_sc_cvar_unescape ~msg ~msg
                 sp_sv_print_broadcast #~msg
             }
@@ -209,7 +209,7 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
     
     sp_sc_flow_if number cvar ~vote_ended == val 0
     {
-        sp_sc_cvar_sset ~cmd "sset ~dd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop %22" #~jailee_slot "%22%20%22" #~admin_name "%22%20%22" #~jailee_name "%22%20%22" #~jailee_ip "%22%20%22" #~start_time "%22%20%22" #~map_count "%22"
+        sp_sc_cvar_sset ~cmd "sset ~dd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop %22" #~jailee_slot "%22%20%22" #~admin_display "%22%20%22" #~jailee_display "%22%20%22" #~jailee_ip "%22%20%22" #~start_time "%22%20%22" #~map_count "%22"
         sp_sc_cvar_append ~cmd ";sp_sc_cvar_unescape ~dd ~dd;$~dd"
         sp_sc_timer 5000 #~cmd
     }
@@ -256,6 +256,8 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
 
                     sp_sc_cvar_copy ~jailee_name _sp_sv_info_client_name
                     sp_sc_cvar_escape ~jailee_name ~jailee_name
+                    // create display name with slot and single quotes: '[slot]name'
+                    sp_sc_cvar_sset ~jailee_display '[ #~par_jail_slot ] #~jailee_name '
 
                     echo slot #~par_slot voted to jail #~par_jail_slot
             
@@ -264,13 +266,16 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
                     sp_sv_info_client #~par_slot
                     sp_sc_cvar_copy ~admin_name _sp_sv_info_client_name 
                     sp_sc_cvar_escape ~admin_name ~admin_name
+                    // create display name with slot and single quotes: '[slot]name'
+                    sp_sc_cvar_sset ~admin_display '[ #~par_slot ] #~admin_name '
 
                     // record which slot started the vote and mark starter as having voted
                     set _spf_sv_rcon_jailed_vote_starter #~par_slot
                     set _spf_sv_rcon_jailed_voted_#~par_slot 1
 
                     sp_sc_info_time
-                    sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_name #~jailee_name #_sp_sv_info_client_ip #_sp_sc_info_time_sec #_sp_sv_info_map_count
+                    // pass display names to vote loop so printed messages include '[slot]name'
+                    sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_display #~jailee_display #_sp_sv_info_client_ip #_sp_sc_info_time_sec #_sp_sv_info_map_count
                 }
                 else
                 {
