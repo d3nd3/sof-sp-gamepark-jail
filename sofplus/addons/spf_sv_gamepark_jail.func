@@ -206,11 +206,11 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
         //vote across map loads, end the loop
         set ~vote_ended 1
     }
-
+    
     sp_sc_flow_if number cvar ~vote_ended == val 0
     {
-        sp_sc_cvar_sset ~cmd "sp_sc_func_exec spf_sv_gamepark_jail_vote_loop " %22 $~jailee_slot %22%20%22 $~admin_name %22%20%22 $~jailee_name %22%20%22 $~jailee_ip %22%20%22 $~start_time %22%20%22 $~map_count %22
-        sp_sc_cvar_unescape ~cmd ~cmd
+        sp_sc_cvar_sset ~cmd "sset ~dd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop %22" #~jailee_slot "%22%20%22" #~admin_name "%22%20%22" #~jailee_name "%22%20%22" #~jailee_ip "%22%20%22" #~start_time "%22%20%22" #~map_count "%22"
+        sp_sc_cvar_append ~cmd ";sp_sc_cvar_unescape ~dd ~dd;$~dd"
         sp_sc_timer 5000 #~cmd
     }
     else
