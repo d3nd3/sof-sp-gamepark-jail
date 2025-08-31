@@ -41,7 +41,7 @@ function spf_sv_gamepark_jail_on_map_begin()
     //is voting in progress
     zero _spf_sv_rcon_jailed_voting
     zero _spf_sv_jail_votes
-    _spf_sv_rcon_jailed_vote_starter
+    set _spf_sv_rcon_jailed_vote_starter -1
 }
 
 function spf_sv_gamepark_jail_on_cl_disc(*)
@@ -209,7 +209,8 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
 
     sp_sc_flow_if number cvar ~vote_ended == val 0
     {
-        sset ~cmd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~jailee_slot #~admin_name #~jailee_name #~jailee_ip #~start_time #~map_count
+        sset ~cmd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop %22$~jailee_slot%22  %22$~admin_name%22 %22$~jailee_name%22 %22$~jailee_ip%22 %22$~start_time%22 %22$~map_count%22
+        sp_sc_cvar_unescape ~cmd ~cmd
         sp_sc_timer 5000 #~cmd
     }
     else
@@ -223,7 +224,7 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
             zero _spf_sv_rcon_jailed_voted_$~i
             add ~i 1
         }
-        zero _spf_sv_rcon_jailed_vote_starter
+        set _spf_sv_rcon_jailed_vote_starter -1
 
         zero _spf_sv_rcon_jailed_voting
         zero _spf_sv_jail_votes
@@ -236,49 +237,64 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_name , ~jailee_name
 //and add jail to the spf_sv_gamepark.func file also
 function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
 {
-    //voting in progress
-    sp_sc_flow_if text cvar _spf_sv_rcon_jailed_voting == val ""
+    //test if number
+    add ~par_jail_slot 0
+    sp_sc_flow_if number cvar ~par_jail_slot > val 0
     {
-        sp_sv_info_client #~par_jail_slot
-
-        sp_sc_flow_if text cvar _sp_sv_info_client_ip != val ""
+        sp_sc_flow_if number cvar ~par_jail_slot < cvar maxclients
         {
-            sset ~msg %03OK: Started vote to jail the accused.
-            sp_sc_cvar_unescape ~msg ~msg
-            sp_sv_print_client #~par_slot #~msg
+            //voting in progress
+            sp_sc_flow_if text cvar _spf_sv_rcon_jailed_voting == val ""
+            {
+                sp_sv_info_client #~par_jail_slot
 
-            sp_sc_cvar_copy ~jailee_name _sp_sv_info_client_name
-            sp_sc_cvar_escape ~jailee_name ~jailee_name
+                sp_sc_flow_if text cvar _sp_sv_info_client_ip != val ""
+                {
+                    sset ~msg %03OK: Started vote to jail the accused.
+                    sp_sc_cvar_unescape ~msg ~msg
+                    sp_sv_print_client #~par_slot #~msg
 
-            echo slot #~par_slot voted to jail #~par_jail_slot
+                    sp_sc_cvar_copy ~jailee_name _sp_sv_info_client_name
+                    sp_sc_cvar_escape ~jailee_name ~jailee_name
+
+                    echo slot #~par_slot voted to jail #~par_jail_slot
             
-            //start the vote
-            set _spf_sv_jail_votes 1 
-            sp_sv_info_client #~par_slot
-            sp_sc_cvar_copy ~admin_name _sp_sv_info_client_name 
-            sp_sc_cvar_escape ~admin_name ~admin_name
+                    //start the vote
+                    set _spf_sv_jail_votes 1 
+                    sp_sv_info_client #~par_slot
+                    sp_sc_cvar_copy ~admin_name _sp_sv_info_client_name 
+                    sp_sc_cvar_escape ~admin_name ~admin_name
 
-            // record which slot started the vote and mark starter as having voted
-            set _spf_sv_rcon_jailed_vote_starter #~par_slot
-            set _spf_sv_rcon_jailed_voted_#~par_slot 1
+                    // record which slot started the vote and mark starter as having voted
+                    set _spf_sv_rcon_jailed_vote_starter #~par_slot
+                    set _spf_sv_rcon_jailed_voted_#~par_slot 1
 
-            sp_sc_info_time
-            sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_name #~jailee_name #_sp_sv_info_client_ip #_sp_sc_info_time_sec #_sp_sv_info_map_count
+                    sp_sc_info_time
+                    sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~par_jail_slot #~admin_name #~jailee_name #_sp_sv_info_client_ip #_sp_sc_info_time_sec #_sp_sv_info_map_count
+                }
+                else
+                {
+                    sset ~msg %02ERROR: Provided slot id is not in use.
+                    sp_sc_cvar_unescape ~msg ~msg
+                    sp_sv_print_client #~par_slot #~msg
+                }
+        
+            }
+            else
+            {
+                sset ~msg %02ERROR: Jail voting is already in progress, try again later.
+                sp_sc_cvar_unescape ~msg ~msg
+                sp_sv_print_client #~par_slot #~msg
+            }
         }
         else
         {
-            sset ~msg %02ERROR: Provided slot id is not in use.
+            set ~msg "%02ERROR: Illegal slot id."
             sp_sc_cvar_unescape ~msg ~msg
             sp_sv_print_client #~par_slot #~msg
         }
-        
     }
-    else
-    {
-        sset ~msg %02ERROR: Jail voting is already in progress, try again later.
-        sp_sc_cvar_unescape ~msg ~msg
-        sp_sv_print_client #~par_slot #~msg
-    }
+    
     
 }
 
