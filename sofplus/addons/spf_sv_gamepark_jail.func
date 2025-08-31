@@ -239,7 +239,7 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
 {
     //test if number
     add ~par_jail_slot 0
-    sp_sc_flow_if number cvar ~par_jail_slot > val 0
+    sp_sc_flow_if number cvar ~par_jail_slot >= val 0
     {
         sp_sc_flow_if number cvar ~par_jail_slot < cvar maxclients
         {
