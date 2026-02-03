@@ -136,6 +136,8 @@ function spf_sv_gamepark_jail_loop()
     sp_sc_timer #_spf_sv_jail_loopms "sp_sc_func_exec spf_sv_gamepark_jail_loop" 
 }
 
+
+
 function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_display , ~jailee_display , ~jailee_ip, ~start_time, ~map_count)
 {
     
@@ -209,9 +211,7 @@ function spf_sv_gamepark_jail_vote_loop(~jailee_slot, ~admin_display , ~jailee_d
     
     sp_sc_flow_if number cvar ~vote_ended == val 0
     {
-        sp_sc_cvar_sset ~cmd "sset ~dd sp_sc_func_exec spf_sv_gamepark_jail_vote_loop %22" #~jailee_slot "%22%20%22" #~admin_display "%22%20%22" #~jailee_display "%22%20%22" #~jailee_ip "%22%20%22" #~start_time "%22%20%22" #~map_count "%22"
-        sp_sc_cvar_append ~cmd ";sp_sc_cvar_unescape ~dd ~dd;$~dd"
-        sp_sc_timer 5000 #~cmd
+        sp_sc_timer_2 5000 sp_sc_func_exec spf_sv_gamepark_jail_vote_loop #~jailee_slot #~admin_display #~jailee_display #~jailee_ip #~start_time #~map_count
     }
     else
     {
@@ -255,7 +255,9 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
                     sp_sv_print_client #~par_slot #~msg
 
                     sp_sc_cvar_copy ~jailee_name _sp_sv_info_client_name
-                    sp_sc_cvar_escape ~jailee_name ~jailee_name
+                    //sp_sc_cvar_escape ~jailee_name ~jailee_name
+                    sp_sc_cvar_append ~jailee_name "%04"
+
                     // create display name with slot and single quotes: '[slot]name'
                     sp_sc_cvar_sset ~jailee_display '[ #~par_jail_slot ] #~jailee_name '
 
@@ -265,7 +267,8 @@ function spf_sv_rcon_jail( ~par_slot, ~par_jail_slot )
                     set _spf_sv_jail_votes 1 
                     sp_sv_info_client #~par_slot
                     sp_sc_cvar_copy ~admin_name _sp_sv_info_client_name 
-                    sp_sc_cvar_escape ~admin_name ~admin_name
+                    //sp_sc_cvar_escape ~admin_name ~admin_name
+                    sp_sc_cvar_append ~admin_name "%04"
                     // create display name with slot and single quotes: '[slot]name'
                     sp_sc_cvar_sset ~admin_display '[ #~par_slot ] #~admin_name '
 
