@@ -1,0 +1,80 @@
+# sof-sp-gamepark-jail — system overview
+# Zones run left to right: entry points -> core -> state -> external.
+# Two .func addons, no build step: the diagram is the whole program.
+# Style classes set strokes only, so light and dark stays readable.
+
+title: |md
+  # sof-sp-gamepark-jail
+  A vote-to-jail addon for SoF1: keep a griefer in spectator for the map, kick if they hop back in.
+| {near: top-center}
+
+direction: right
+grid-columns: 2
+grid-rows: 2
+horizontal-gap: 260
+vertical-gap: 240
+
+entry: Entry points {
+  direction: down
+
+  rcon: `.rcon jail <slot>` · admin opens a vote, via spf_sv_rcon command table
+  dotjail: `.jail` · any player adds one vote, deduped per slot
+  hooks: SoFPlus hooks · on_map_begin, on_client_begin, on_client_disconnect
+
+  rcon -> dotjail: admin vote is the first of three
+}
+
+state: State {
+  direction: down
+
+  jailed: `_spf_sv_rcon_jailed_<slot>` · per-slot prisoner flag, empty or 1
+  lives: `_spf_sv_rcon_jailed_lives_<slot>` · hops back into the game
+  voted: `_spf_sv_rcon_jailed_voted_<slot>` · one vote per slot, cleared per vote
+  iplist: `_spf_sv_jail_iplist` · comma-joined prisoner IPs, the map's memory
+  votes: `_spf_sv_jail_votes`, `_spf_sv_rcon_jailed_voting`, `_vote_starter`
+  knobs: `_spf_sv_jail_loopms=2500`, `_maxlives=3`, `_maxvotes=3`
+  timer: `sp_sc_timer2` arg buffer · hex-encoded command string
+
+  iplist -> jailed: reconnect re-applies jail by IP
+}
+
+core: Core {
+  direction: down
+
+  start: spf_sv_rcon_jail · bounds-check slot, refuse a second vote, seed count at 1
+  voteloop: vote_loop · 5 s tick: 3 votes wins, 30 s timeout loses, map change ends it
+  sweep: jail_loop · 2.5 s sweep: force spectate, count the hop, kick past maxlives
+  rejoin: on_cl_join · IP match against iplist, instant re-jail without extra lives
+  jailfn: `.jail` handler · rejects the starter and repeat voters, increments count
+  tramp: sp_sc_timer2 + unHex · carry an argument list through a space-splitting timer
+
+  start -> voteloop: guilty verdict
+  voteloop -> sweep: prisoner added to the sweep set
+  rejoin -> sweep: returning prisoner lands back in spec
+  jailfn -> voteloop: votes arrive while the tick runs
+}
+
+ext: External {
+  direction: down
+
+  server: SoF server · kick, sp_sv_client_spec, sp_sv_info_client
+  plus: SoFPlus script API · cvars, timers, list helpers, printing
+  addons: spf_sv_rcon.func / spf_sv_gamepark.func · hand-patched command tables
+  players: players · receive broadcast vote prompts and prison messages
+}
+
+entry -> core: dispatch by hook or command
+core -> state: read/write per-slot cvars
+state -> ext: enforced through server commands
+
+classes: {
+  entry: {style: {stroke: "#2f6fbf"}}
+  core: {style: {stroke: "#2f8f5f"}}
+  state: {style: {stroke: "#a86a12"; stroke-dash: 3}}
+  ext: {style: {stroke: "#8a4fbf"; stroke-dash: 5}}
+}
+
+entry.class: entry
+core.class: core
+state.class: state
+ext.class: ext
